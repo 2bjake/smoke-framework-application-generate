@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.5
 //
 // Copyright 2019-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
@@ -36,6 +36,11 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser", from: "0.3.0"),
     ],
     targets: [
+        .plugin(
+            name: "smoke-framework-application-generate",
+            capability: .buildTool(),
+            dependencies: ["SmokeFrameworkApplicationGenerate"]
+        ),
         .target(
             name: "SmokeFrameworkApplicationGenerate", dependencies: [
                 .target(name: "SmokeFrameworkCodeGeneration"),
