@@ -39,6 +39,7 @@ struct Parameters {
     var modelOverride: ConfigurationProvider<ModelOverride>?
     var generateCodeGenConfig: Bool?
     var httpClientConfiguration: ConfigurationProvider<HttpClientConfiguration>?
+    var asyncAwaitGeneration: SmokeFrameworkAsyncAwaitGeneration?
     var initializationType: InitializationType?
     var operationStubGenerationRule: OperationStubGenerationRule
 }
@@ -84,6 +85,7 @@ private func startCodeGeneration(
         baseName: String, baseFilePath: String,
         applicationDescription: String, applicationSuffix: String,
         modelFilePath: String, generationType: GenerationType,
+        asyncAwaitGeneration: SmokeFrameworkAsyncAwaitGeneration,
         initializationType: InitializationType,
         operationStubGenerationRule: OperationStubGenerationRule,
         modelOverride: ModelOverride?) throws -> SwaggerServiceModel {
@@ -94,7 +96,7 @@ private func startCodeGeneration(
     let customizations = CodeGenerationCustomizations(
         validationErrorDeclaration: validationErrorDeclaration,
         unrecognizedErrorDeclaration: unrecognizedErrorDeclaration,
-        asyncAwaitGeneration: .none,
+        asyncAwaitGeneration: asyncAwaitGeneration.client,
         generateModelShapeConversions: true,
         optionalsInitializeEmpty: true,
         fileHeader: nil,
@@ -113,6 +115,7 @@ private func startCodeGeneration(
         customizations: customizations,
         applicationDescription: fullApplicationDescription,
         operationStubGenerationRule: operationStubGenerationRule,
+        asyncAwaitServerGeneration: asyncAwaitGeneration.server,
         initializationType: initializationType,
         modelOverride: modelOverride)
 }
@@ -161,6 +164,7 @@ func handleApplication(parameters: Parameters) throws {
         applicationDescription: applicationDescription,
         applicationSuffix: applicationSuffix, modelFilePath: parameters.modelFilePath,
         generationType: parameters.generationType,
+        asyncAwaitGeneration: parameters.asyncAwaitGeneration ?? .default,
         initializationType: parameters.initializationType ?? .original,
         operationStubGenerationRule: parameters.operationStubGenerationRule,
         modelOverride: modelOverride)
@@ -187,6 +191,7 @@ func handleApplication(parameters: Parameters) throws {
                                                           applicationDescription: parameters.applicationDescription,
                                                           modelOverride: modelOverride,
                                                           httpClientConfiguration: httpClientConfigurationOptional,
+                                                          asyncAwaitGeneration: parameters.asyncAwaitGeneration,
                                                           initializationType: parameters.initializationType,
                                                           operationStubGenerationRule: .allFunctionsWithinContextExceptStandaloneFunctionsFor(existingOperations.sorted(by: <)))
         
@@ -347,6 +352,7 @@ struct SmokeFrameworkApplicationGenerateCommand: ParsableCommand {
             modelOverride: modelOverride,
             generateCodeGenConfig: generateCodeGenConfig ?? false,
             httpClientConfiguration: httpClientConfiguration,
+            asyncAwaitGeneration: config?.asyncAwaitGeneration,
             initializationType: config?.initializationType,
             operationStubGenerationRule: operationStubGenerationRule)
         

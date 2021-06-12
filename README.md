@@ -98,7 +98,6 @@ The code generator will produce a Swift Package Manager repository with the foll
   - (base-name)OperationsHTTP1
   - (base-name)Service
 - Tests
-  - LinuxMain.swift      
   - <base-name>OperationsTests
 ```
 

@@ -23,9 +23,10 @@ extension ServiceModelCodeGenerator {
     /**
      Generate the main Swift file for the generated application as a Container Server.
      */
-    func generateServerApplicationFiles(generationType: GenerationType) {
+    func generateServerApplicationFiles(generationType: GenerationType,
+                                        asyncAwaitGeneration: AsyncAwaitGeneration) {
         generateContainerServerApplicationMain(generationType: generationType)
-        generatePackageFile(generationType: generationType)
+        generatePackageFile(generationType: generationType, asyncAwaitGeneration: asyncAwaitGeneration)
         generateLintFile(generationType: generationType)
         generateGitIgnoreFile(generationType: generationType)
     }
@@ -61,7 +62,8 @@ extension ServiceModelCodeGenerator {
         fileBuilder.write(toFile: fileName, atFilePath: filePath)
     }
 
-    private func generatePackageFile(generationType: GenerationType) {
+    private func generatePackageFile(generationType: GenerationType,
+                                     asyncAwaitGeneration: AsyncAwaitGeneration) {
         
         let fileBuilder = FileBuilder()
         let baseName = applicationDescription.baseName
@@ -106,10 +108,19 @@ extension ServiceModelCodeGenerator {
                         targets: ["\(baseName)\(applicationSuffix)"]),
                     ],
                 dependencies: [
-                    .package(url: "https://github.com/amzn/smoke-framework.git", from: "2.7.0"),
+                    .package(url: "https://github.com/amzn/smoke-framework.git", from: "2.9.0"),
                     .package(url: "https://github.com/amzn/smoke-aws-credentials.git", from: "2.0.0"),
-                    .package(url: "https://github.com/amzn/smoke-aws.git", from: "2.0.0"),
+                    .package(url: "https://github.com/amzn/smoke-aws.git", from: "2.38.40"),
                     .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
+            """)
+            
+        if case .experimental = asyncAwaitGeneration {
+            fileBuilder.appendLine("""
+                        .package(url: "https://github.com/apple/swift-nio.git", from: "2.28.0"),
+                """)
+        }
+            
+        fileBuilder.appendLine("""
                     ],
                 targets: [
                     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -128,12 +139,31 @@ extension ServiceModelCodeGenerator {
                             .target(name: "\(baseName)Operations"),
                             .product(name: "SmokeOperationsHTTP1", package: "smoke-framework"),
                             .product(name: "SmokeOperationsHTTP1Server", package: "smoke-framework"),
+            """)
+            
+        if case .experimental = asyncAwaitGeneration {
+            fileBuilder.appendLine("""
+                                .product(name: "_SmokeOperationsHTTP1Concurrency", package: "smoke-framework"),
+                """)
+        }
+            
+        fileBuilder.appendLine("""
                         ]),
                     .target(
                         name: "\(baseName)Client", dependencies: [
                             .target(name: "\(baseName)Model"),
                             .product(name: "SmokeOperationsHTTP1", package: "smoke-framework"),
                             .product(name: "SmokeAWSHttp", package: "smoke-aws"),
+            """)
+            
+        if case .experimental = asyncAwaitGeneration {
+            fileBuilder.appendLine("""
+                                .product(name: "_SmokeAWSHttpConcurrency", package: "smoke-aws"),
+                                .product(name: "_NIOConcurrency", package: "swift-nio"),
+                """)
+        }
+            
+        fileBuilder.appendLine("""
                         ]),
                     .target(
                         name: "\(baseName)\(applicationSuffix)", dependencies: [

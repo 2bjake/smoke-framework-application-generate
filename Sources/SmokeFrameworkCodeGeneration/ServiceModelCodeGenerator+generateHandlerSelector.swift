@@ -24,7 +24,8 @@ extension ServiceModelCodeGenerator {
      Generate the hander selector for the operation handlers for the generated application.
      */
     func generateServerHanderSelector(operationStubGenerationRule: OperationStubGenerationRule,
-                                      initializationType: InitializationType) {
+                                      initializationType: InitializationType,
+                                      asyncAwaitGeneration: AsyncAwaitGeneration) {
         
         let fileBuilder = FileBuilder()
         let baseName = applicationDescription.baseName
@@ -45,6 +46,15 @@ extension ServiceModelCodeGenerator {
             import SmokeOperationsHTTP1
             
             """)
+        
+        if case .experimental = asyncAwaitGeneration {
+            fileBuilder.appendLine("""
+                #if compiler(>=5.5) && $AsyncAwait
+                import _SmokeOperationsHTTP1Concurrency
+                #endif
+                
+                """)
+        }
         
         fileBuilder.appendLine("""
             extension \(baseName)ModelOperations: OperationIdentity {}

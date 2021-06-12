@@ -127,6 +127,7 @@ public struct SmokeFrameworkCodeGeneration {
         customizations: CodeGenerationCustomizations,
         applicationDescription: ApplicationDescription,
         operationStubGenerationRule: OperationStubGenerationRule,
+        asyncAwaitServerGeneration: AsyncAwaitGeneration,
         initializationType: InitializationType,
         modelOverride: ModelOverride?) throws -> ModelType {
             func generatorFunction(codeGenerator: ServiceModelCodeGenerator,
@@ -134,7 +135,8 @@ public struct SmokeFrameworkCodeGeneration {
                 try codeGenerator.generateFromModel(serviceModel: serviceModel, generationType: generationType,
                                                     asyncAwaitClientGeneration: customizations.asyncAwaitGeneration,
                                                     initializationType: initializationType,
-                                                    operationStubGenerationRule: operationStubGenerationRule)
+                                                    operationStubGenerationRule: operationStubGenerationRule,
+                                                    asyncAwaitServerGeneration: asyncAwaitServerGeneration)
             }
         
             return try ServiceModelGenerate.generateFromModel(
@@ -152,7 +154,8 @@ extension ServiceModelCodeGenerator {
                                                     generationType: GenerationType,
                                                     asyncAwaitClientGeneration: AsyncAwaitGeneration,
                                                     initializationType: InitializationType,
-                                                    operationStubGenerationRule: OperationStubGenerationRule) throws {
+                                                    operationStubGenerationRule: OperationStubGenerationRule,
+                                                    asyncAwaitServerGeneration: AsyncAwaitGeneration) throws {
         let clientProtocolDelegate = ClientProtocolDelegate(
             baseName: applicationDescription.baseName,
             asyncAwaitGeneration: asyncAwaitClientGeneration)
@@ -170,15 +173,25 @@ extension ServiceModelCodeGenerator {
             defaultInvocationTraceContext: InvocationTraceContextDeclaration(name: "SmokeInvocationTraceContext", importPackage: "SmokeOperationsHTTP1"))
         let awsModelErrorsDelegate = SmokeFrameworkModelErrorsDelegate()
         
-        generateServerOperationHandlerStubs(generationType: generationType, operationStubGenerationRule: operationStubGenerationRule)
+        let overallAwaitClientGeneration: AsyncAwaitGeneration
+        switch (asyncAwaitClientGeneration, asyncAwaitServerGeneration) {
+        case (.none, .none):
+            overallAwaitClientGeneration = .none
+        default:
+            overallAwaitClientGeneration = .experimental
+        }
+        
+        generateServerOperationHandlerStubs(generationType: generationType, operationStubGenerationRule: operationStubGenerationRule,
+                                            asyncAwaitGeneration: asyncAwaitServerGeneration)
         generateServerHanderSelector(operationStubGenerationRule: operationStubGenerationRule,
-                                     initializationType: initializationType)
-        generateServerApplicationFiles(generationType: generationType)
+                                     initializationType: initializationType,
+                                     asyncAwaitGeneration: asyncAwaitServerGeneration)
+        generateServerApplicationFiles(generationType: generationType, asyncAwaitGeneration: overallAwaitClientGeneration)
         generateOperationsContext(generationType: generationType)
         generateOperationsContextGenerator(generationType: generationType, initializationType: initializationType)
-        generateOperationTests(generationType: generationType, operationStubGenerationRule: operationStubGenerationRule)
+        generateOperationTests(generationType: generationType, operationStubGenerationRule: operationStubGenerationRule,
+                               asyncAwaitGeneration: asyncAwaitServerGeneration)
         generateTestConfiguration(generationType: generationType)
-        generateLinuxMain()
         
         generateClient(delegate: clientProtocolDelegate, isGenerator: false)
         generateClient(delegate: mockClientDelegate, isGenerator: false)
