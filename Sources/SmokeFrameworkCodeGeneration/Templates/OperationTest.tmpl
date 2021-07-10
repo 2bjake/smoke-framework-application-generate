@@ -1,0 +1,34 @@
+//
+// {{ name }}Tests.swift
+// {{ baseName }}OperationsTests
+//
+
+import XCTest
+@testable import {{ baseName }}Operations
+import {{ baseName }}Model
+
+class {{ name }}Tests: XCTestCase {
+
+    func test{{ name }}() {
+        let input = {{ input }}.__default
+        let operationsContext = createOperationsContext()
+
+        {% if withinContext %}
+            {% if output %}
+        XCTAssertEqual({{ tryPrefix }}operationsContext.handle{{ name }}(input: input), {{ output }}.__default)
+            {% else %}
+        XCTAssertNoThrow({{ tryPrefix }}operationsContext.handle{{ name }}(input: input))
+            {% endif %}
+        {% else %}
+            {% if output %}
+        XCTAssertEqual({{ tryPrefix }}handle{{ name }}(input: input, context: operationsContext), {{ output }}.__default)
+            {% else %}
+        XCTAssertNoThrow({{ tryPrefix }}handle{{ name }}(input: input, context: operationsContext))
+            {% endif %}
+        {% endif %}
+    }
+
+    static var allTests = [
+        ("test{{ name }}", test{{ name }}),
+    ]
+}

@@ -1,0 +1,12 @@
+//
+// LinuxMain.swift
+//
+
+import XCTest
+@testable import {{ baseName }}OperationsTests
+
+XCTMain([
+    {% for operation in operations %}
+    testCase({{ operation }}Tests.allTests),
+    {% endfor %}
+])

@@ -21,32 +21,16 @@ import ServiceModelCodeGeneration
 extension ServiceModelCodeGenerator {
 
     func generateLinuxMain() {
-        
+        let context: [String: Any] = [
+            "baseName": applicationDescription.baseName,
+            "operations": model.operationDescriptions.keys.sorted(by: <).map { $0.startingWithUppercase }
+        ]
+
         let fileBuilder = FileBuilder()
-        let baseName = applicationDescription.baseName
-        let baseFilePath = applicationDescription.baseFilePath
-        
-        fileBuilder.appendLine("""
-            //
-            // LinuxMain.swift
-            //
-            
-            import XCTest
-            @testable import \(baseName)OperationsTests
-            
-            XCTMain([
-            """)
-        
-        let operations = [String](model.operationDescriptions.keys)
-        
-        fileBuilder.incIndent()
-        for operationName in operations.sorted(by: <) {
-            let name = operationName.startingWithUppercase
-            fileBuilder.appendLine("testCase(\(name)Tests.allTests),")
-        }
-        fileBuilder.appendLine("])", preDec: true)
-        
+        fileBuilder.appendRenderedTemplate(name: "LinuxMain.tmpl", context: context)
+
         let fileName = "LinuxMain.swift"
+        let baseFilePath = applicationDescription.baseFilePath
         fileBuilder.write(toFile: fileName, atFilePath: "\(baseFilePath)/Tests")
     }
 }

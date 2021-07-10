@@ -20,47 +20,6 @@ import ServiceModelCodeGeneration
 import ServiceModelEntities
 
 extension ServiceModelCodeGenerator {
-    private func generateExampleTestCase(operationDescription: OperationDescription, name: String,
-                                         input: String, fileBuilder: FileBuilder,
-                                         operationStubGeneration: OperationStubGeneration) {
-        let tryPrefix = !operationDescription.errors.isEmpty ? "try " : ""
-        
-        // append the body of the test for this operation.
-        fileBuilder.appendLine("""
-            func test\(name)() {
-                let input = \(input).__default
-                let operationsContext = createOperationsContext()
-            
-            """)
-        
-        switch operationStubGeneration {
-        case .functionWithinContext:
-            if let output = operationDescription.output {
-                fileBuilder.appendLine("""
-                        XCTAssertEqual(\(tryPrefix)operationsContext.handle\(name)(input: input), \(output).__default)
-                    }
-                    """)
-            } else {
-                fileBuilder.appendLine("""
-                        XCTAssertNoThrow(\(tryPrefix)operationsContext.handle\(name)(input: input))
-                    }
-                    """)
-            }
-        case .standaloneFunction:
-            if let output = operationDescription.output {
-                fileBuilder.appendLine("""
-                        XCTAssertEqual(\(tryPrefix)handle\(name)(input: input, context: operationsContext), \(output).__default)
-                    }
-                    """)
-            } else {
-                fileBuilder.appendLine("""
-                        XCTAssertNoThrow(\(tryPrefix)handle\(name)(input: input, context: operationsContext))
-                    }
-                    """)
-            }
-        }
-    }
-    
     /**
      Generate the example operation unit tests for the generated application.
      */
@@ -68,16 +27,17 @@ extension ServiceModelCodeGenerator {
         let baseName = applicationDescription.baseName
         let baseFilePath = applicationDescription.baseFilePath
         let filePath = "\(baseFilePath)/Tests/\(baseName)OperationsTests"
-        
+
         // iterate through each operation
         for (operationName, operationDescription) in model.operationDescriptions {
             let name = operationName.startingWithUppercase
+
             // skip this operation if it doesn't have an
             // input structure or output structure
             guard let input = operationDescription.input else {
                 continue
             }
-            
+
             let fileName = "\(name)Tests.swift"
             
             if case .serverUpdate = generationType {
@@ -85,39 +45,19 @@ extension ServiceModelCodeGenerator {
                     continue
                 }
             }
-            
+
+            let withinContext = operationStubGenerationRule.getStubGeneration(forOperation: operationName) == .functionWithinContext
+            let context: [String: Any] = [
+                "baseName": baseName,
+                "name": name,
+                "input": input,
+                "output": operationDescription.output ?? "",
+                "withinContext": withinContext,
+                "tryPrefix": !operationDescription.errors.isEmpty ? "try " : ""
+            ]
+
             let fileBuilder = FileBuilder()
-            
-            fileBuilder.appendLine("""
-                //
-                // \(name)Tests.swift
-                // \(baseName)OperationsTests
-                //
-                
-                import XCTest
-                @testable import \(baseName)Operations
-                import \(baseName)Model
-                
-                class \(name)Tests: XCTestCase {
-                
-                """)
-            
-            fileBuilder.incIndent()
-            
-            let operationStubGeneration = operationStubGenerationRule.getStubGeneration(forOperation: operationName)
-            generateExampleTestCase(operationDescription: operationDescription, name: name, input: input,
-                                    fileBuilder: fileBuilder, operationStubGeneration: operationStubGeneration)
-        
-            // append the allTests list
-            fileBuilder.appendEmptyLine()
-            fileBuilder.appendLine("""
-                static var allTests = [
-                    ("test\(name)", test\(name)),
-                ]
-                """)
-            
-            fileBuilder.appendLine("}", preDec: true)
-        
+            fileBuilder.appendRenderedTemplate(name: "OperationTest.tmpl", context: context)
             fileBuilder.write(toFile: fileName,
                               atFilePath: filePath)
         }
