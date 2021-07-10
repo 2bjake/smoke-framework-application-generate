@@ -17,35 +17,47 @@
 
 import Foundation
 import ServiceModelCodeGeneration
+import SwiftSyntax
+
+private class LinuxMainRewriter: SyntaxRewriter {
+    private let operations: [String]
+    private let baseNameRewriter: IdentifierRewriter
+
+    init(baseName: String, operations: [String]) {
+        self.operations = operations.sorted(by: <).map { $0.startingWithUppercase }
+        baseNameRewriter = IdentifierRewriter(pattern: "$baseName$", replacement: baseName)
+    }
+
+    override func visit(_ token: TokenSyntax) -> Syntax {
+        baseNameRewriter.visit(token)
+    }
+
+    override func visit(_ node: ArrayElementListSyntax) -> Syntax {
+        guard let child = node.first else { return Syntax(node) }
+        var newNode = node.removingLast()
+        for operation in operations {
+            let newChild = ArrayElementSyntax(IdentifierRewriter(pattern: "$operationName$", replacement: operation).visit(child))!
+            newNode = newNode.appending(newChild)
+        }
+        return Syntax(newNode)
+    }
+}
 
 extension ServiceModelCodeGenerator {
 
     func generateLinuxMain() {
-        
         let fileBuilder = FileBuilder()
         let baseName = applicationDescription.baseName
         let baseFilePath = applicationDescription.baseFilePath
-        
-        fileBuilder.appendLine("""
-            //
-            // LinuxMain.swift
-            //
-            
-            import XCTest
-            @testable import \(baseName)OperationsTests
-            
-            XCTMain([
-            """)
-        
-        let operations = [String](model.operationDescriptions.keys)
-        
-        fileBuilder.incIndent()
-        for operationName in operations.sorted(by: <) {
-            let name = operationName.startingWithUppercase
-            fileBuilder.appendLine("testCase(\(name)Tests.allTests),")
-        }
-        fileBuilder.appendLine("])", preDec: true)
-        
+
+        let templateURL = Bundle.module.url(forResource: "Templates/LinuxMain", withExtension: "tmpl")!
+        let templateSource = try! SyntaxParser.parse(templateURL)
+
+        let rewriter = LinuxMainRewriter(baseName: baseName, operations: Array(model.operationDescriptions.keys))
+
+        let rewritten = rewriter.visit(templateSource)
+        fileBuilder.appendLine("\(rewritten)")
+
         let fileName = "LinuxMain.swift"
         fileBuilder.write(toFile: fileName, atFilePath: "\(baseFilePath)/Tests")
     }
